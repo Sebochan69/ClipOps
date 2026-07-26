@@ -5,6 +5,7 @@ import "./styles.css";
 type ApiError = { message: string; details?: { line_number: number; message: string }[] };
 type ValidationResponse = { line_count: number; warnings: string[] };
 type Asset = { id: string; asset_type: string; content: string };
+type QueueCandidate = { candidate_id: string; transcript_excerpt: string; status: string; scores: { overall_score: number } | null };
 type Candidate = {
   candidate_id: string;
   start_seconds: number;
@@ -26,6 +27,10 @@ function App() {
   const [segments, setSegments] = useState<{ id: string; start_seconds: number; end_seconds: number; text: string }[] | null>(null);
   const [candidateId, setCandidateId] = useState("");
   const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [workflowRunId, setWorkflowRunId] = useState("");
+  const [queue, setQueue] = useState<QueueCandidate[]>([]);
+  const [queueStatus, setQueueStatus] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
 
   async function loadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -68,6 +73,23 @@ function App() {
     setSegments((await response.json()) as NonNullable<typeof segments>);
   }
 
+  async function loadQueue() {
+    const query = queueStatus ? `?status=${queueStatus}` : "";
+    const response = await fetch(`http://127.0.0.1:8000/workflow-runs/${workflowRunId}/candidates${query}`);
+    if (!response.ok) return setMessage("Workflow run was not found.");
+    setQueue((await response.json()) as QueueCandidate[]);
+  }
+
+  async function reviewCandidate(candidateId: string, action: string) {
+    const response = await fetch(`http://127.0.0.1:8000/candidates/${candidateId}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, reason: action === "REJECT" ? rejectionReason : "" }),
+    });
+    if (!response.ok) return setMessage("Review action was not allowed.");
+    await loadQueue();
+  }
+
   async function loadCandidate() {
     const response = await fetch(`http://127.0.0.1:8000/candidates/${candidateId}`);
     if (!response.ok) return setMessage("Candidate was not found.");
@@ -95,6 +117,7 @@ function App() {
     {warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
     <button disabled={status !== "valid"} onClick={loadSegments}>Review segments</button>
     {segments?.map((segment) => <article key={segment.id}><strong>{segment.start_seconds}s–{segment.end_seconds}s</strong><p>{segment.text}</p></article>)}
+    <section><h2>Review queue</h2><label>Workflow run ID<input value={workflowRunId} onChange={(event) => setWorkflowRunId(event.target.value)} /></label><label>Status filter<select value={queueStatus} onChange={(event) => setQueueStatus(event.target.value)}><option value="">All</option><option>NEEDS_REVIEW</option><option>APPROVED</option><option>REJECTED</option><option>EDITING</option></select></label><label>Rejection reason<input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} /></label><button onClick={loadQueue}>Load queue</button>{queue.map((item) => <article key={item.candidate_id}><strong>{item.status} · {item.scores?.overall_score ?? "Unscored"}</strong><p>{item.transcript_excerpt}</p><button onClick={() => reviewCandidate(item.candidate_id, "SUBMIT_FOR_REVIEW")}>Submit</button><button onClick={() => reviewCandidate(item.candidate_id, "APPROVE")}>Approve</button><button onClick={() => reviewCandidate(item.candidate_id, "REJECT")}>Reject</button><button onClick={() => reviewCandidate(item.candidate_id, "EDIT")}>Edit</button></article>)}</section>
     <section><h2>Candidate detail</h2><label>Candidate ID<input value={candidateId} onChange={(event) => setCandidateId(event.target.value)} /></label><button onClick={loadCandidate}>Load candidate</button></section>
     {candidate && <section><h3>{candidate.start_seconds}s–{candidate.end_seconds}s</h3><p>{candidate.transcript_excerpt}</p><p>{candidate.reason_selected}</p><p>Confidence: {candidate.confidence}</p><pre>{JSON.stringify(candidate.scores, null, 2)}</pre>{candidate.assets.map((asset, index) => <label key={asset.id}>{asset.asset_type}<textarea value={asset.content} onChange={(event) => setCandidate({ ...candidate, assets: candidate.assets.map((item, itemIndex) => itemIndex === index ? { ...item, content: event.target.value } : item) })} /><button onClick={() => saveAsset(asset)}>Save</button></label>)}</section>}
   </main>;
