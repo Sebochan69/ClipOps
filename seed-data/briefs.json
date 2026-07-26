@@ -1,0 +1,4 @@
+[
+  {"id":"brief-focus-reset","name":"Focus reset","objective":"Teach a practical focus habit.","target_audience":"Early-career professionals","topic_angle":"Reduce context switching","desired_formats":["30-second tip"],"must_include":["One action"],"must_avoid":["Productivity guarantees"],"tone":"Practical","cta_goal":"Encourage saving","brand_safety_notes":"Avoid health claims."},
+  {"id":"brief-experiment-basics","name":"Experiment basics","objective":"Explain a simple content experiment.","target_audience":"Small-team operators","topic_angle":"Compare two hooks","desired_formats":["45-second explainer"],"must_include":["A caveat"],"must_avoid":["Causal claims"],"tone":"Analytical","cta_goal":"Encourage a small test","brand_safety_notes":"State that metrics are simulated."}
+]

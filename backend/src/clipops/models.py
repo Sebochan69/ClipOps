@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -47,6 +47,7 @@ class ContentBrief(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String)
     objective: Mapped[str] = mapped_column(Text)
+    details: Mapped[dict[str, object]] = mapped_column(JSON)
 
 
 class AccountProfile(Base):
@@ -54,6 +55,7 @@ class AccountProfile(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String)
     platform: Mapped[str] = mapped_column(String)
+    details: Mapped[dict[str, object]] = mapped_column(JSON)
 
 
 class WorkflowRun(Base):

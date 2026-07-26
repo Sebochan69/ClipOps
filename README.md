@@ -16,6 +16,12 @@ uv run uvicorn clipops.main:app --app-dir src --reload
 
 The API health check is at `http://127.0.0.1:8000/health`.
 
+Load the fictional demo data (safe to run again):
+
+```bash
+uv run python -m clipops.seed
+```
+
 ```bash
 cd frontend
 npm install
