@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from clipops.database import make_engine
 from clipops.models import (
+    AccountProfile,
     Base,
     ClipCandidate,
     ClipScore,
@@ -74,6 +75,23 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         session.flush()
         persist_segments(session, request.transcript_id, request.raw_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
+
+
+@app.get("/publishing-queue", response_model=None)
+def list_publishing_queue() -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        rows = session.execute(
+            select(PublishingQueueItem, ClipCandidate, AccountProfile)
+            .join(ClipCandidate, ClipCandidate.id == PublishingQueueItem.candidate_id)
+            .join(AccountProfile, AccountProfile.id == PublishingQueueItem.account_profile_id)
+            .order_by(PublishingQueueItem.scheduled_for)
+        ).all()
+    return [
+        {"queue_item_id": item.id, "status": item.status, "scheduled_for": item.scheduled_for, "account": account.name, "platform": account.platform, "candidate_excerpt": candidate.transcript_excerpt}
+        for item, candidate, account in rows
+    ]
 
 
 @app.post("/candidates/{candidate_id}/queue", response_model=None)
