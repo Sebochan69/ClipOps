@@ -9,7 +9,10 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["httpx", "pytest"]
+dev = ["httpx", "pytest", "ruff"]
+
+[tool.ruff]
+target-version = "py311"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

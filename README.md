@@ -25,8 +25,8 @@ npm run dev
 ## Checks
 
 ```bash
-cd backend && uv run pytest
-cd frontend && npm run build
+cd backend && uv run ruff check . && uv run pytest
+cd frontend && npm run check
 ```
 
 ## Status
