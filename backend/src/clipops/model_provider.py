@@ -35,15 +35,21 @@ class MockModelProvider:
     model_name = "deterministic-v1"
 
     def detect_moments(self, segments: Sequence[SegmentInput]) -> list[MomentDraft]:
-        return [
-            MomentDraft(
-                start_seconds=segment.start_seconds,
-                end_seconds=segment.end_seconds,
-                transcript_excerpt=segment.text,
-                reason_selected="Deterministic demo selection from a transcript segment.",
+        if not segments:
+            return []
+        moments: list[MomentDraft] = []
+        for index in range(6):
+            segment = segments[index % len(segments)]
+            start_seconds = min(segment.end_seconds - 1, segment.start_seconds + index)
+            moments.append(
+                MomentDraft(
+                    start_seconds=start_seconds,
+                    end_seconds=max(start_seconds + 1, segment.end_seconds),
+                    transcript_excerpt=segment.text,
+                    reason_selected="Deterministic demo selection from a transcript segment.",
+                )
             )
-            for segment in segments
-        ]
+        return moments
 
 
 def record_model_run(

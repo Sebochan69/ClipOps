@@ -13,6 +13,11 @@ from clipops.model_provider import (
     record_model_run,
 )
 from clipops.models import Base, WorkflowRun
+from clipops.moment_detection import (
+    PROMPT_VERSION,
+    create_candidates,
+    validate_moment_output,
+)
 from clipops.segmentation import Segment, segment_transcript
 from clipops.transcript_validation import validate_transcript
 
@@ -24,6 +29,8 @@ class WorkflowState(TypedDict, total=False):
     moments: list[MomentDraft]
     error: str
     status: str
+    source_content_id: str | None
+    account_profile_id: str | None
 
 
 def build_workflow(engine: Engine, provider: ModelProvider):
@@ -44,8 +51,17 @@ def build_workflow(engine: Engine, provider: ModelProvider):
         moments = provider.detect_moments(
             [SegmentInput(segment.start_seconds, segment.end_seconds, segment.text) for segment in state["segments"]]
         )
+        output = validate_moment_output(moments)
         with Session(engine) as session:
-            record_model_run(session, state["workflow_run_id"], provider, "moment-detection-v1", "VALID")
+            if state.get("source_content_id") and state.get("account_profile_id"):
+                create_candidates(
+                    session,
+                    state["workflow_run_id"],
+                    state["source_content_id"],
+                    state["account_profile_id"],
+                    output,
+                )
+            record_model_run(session, state["workflow_run_id"], provider, PROMPT_VERSION, "VALID", raw_output_reference="prompts/moment-detection-v1.md")
         return {"moments": moments}
 
     def finish(state: WorkflowState) -> WorkflowState:
@@ -71,12 +87,23 @@ def build_workflow(engine: Engine, provider: ModelProvider):
     return graph.compile()
 
 
-def run_workflow(engine: Engine, raw_text: str, provider: ModelProvider | None = None) -> WorkflowState:
+def run_workflow(
+    engine: Engine,
+    raw_text: str,
+    provider: ModelProvider | None = None,
+    source_content_id: str | None = None,
+    account_profile_id: str | None = None,
+) -> WorkflowState:
     Base.metadata.create_all(engine)
     workflow_run_id = str(uuid4())
     with Session(engine) as session:
         session.add(WorkflowRun(id=workflow_run_id, status="RUNNING"))
         session.commit()
     return build_workflow(engine, provider or MockModelProvider()).invoke(
-        {"raw_text": raw_text, "workflow_run_id": workflow_run_id}
+        {
+            "raw_text": raw_text,
+            "workflow_run_id": workflow_run_id,
+            "source_content_id": source_content_id,
+            "account_profile_id": account_profile_id,
+        }
     )
