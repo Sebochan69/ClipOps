@@ -43,6 +43,11 @@ def client(tmp_path):
     app.state.engine = None
 
 
+def test_workflow_runs_include_model_metadata(client: TestClient) -> None:
+    response = client.get("/workflow-runs")
+    assert response.json()[0]["workflow_run_id"] == "workflow"
+
+
 def test_only_approved_candidate_can_be_queued(client: TestClient) -> None:
     response = client.post("/candidates/higher/queue", json={"scheduled_for": "2026-08-01T09:00:00Z"})
     assert response.json() == {"queue_item_id": "queue:higher", "status": "QUEUED"}

@@ -13,6 +13,7 @@ from clipops.models import (
     ClipScore,
     ContentExperiment,
     GeneratedAsset,
+    ModelRun,
     PerformanceRecord,
     PublishingQueueItem,
     SourceContent,
@@ -211,6 +212,21 @@ def update_asset(candidate_id: str, asset_id: str, request: AssetUpdateRequest) 
         asset.content = request.content
         session.commit()
     return {"id": asset_id, "content": request.content}
+
+
+@app.get("/workflow-runs", response_model=None)
+def list_workflow_runs() -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        runs = session.scalars(select(WorkflowRun).order_by(WorkflowRun.id.desc())).all()
+        return [
+            {"workflow_run_id": run.id, "status": run.status, "error_message": run.error_message, "model_runs": [
+                {"provider": model.provider, "model": model.model, "prompt_version": model.prompt_version, "validation_result": model.validation_result, "repair_count": model.repair_count}
+                for model in session.scalars(select(ModelRun).where(ModelRun.workflow_run_id == run.id)).all()
+            ]}
+            for run in runs
+        ]
 
 
 @app.get("/workflow-runs/{workflow_run_id}/candidates", response_model=None)
