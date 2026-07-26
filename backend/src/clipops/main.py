@@ -5,6 +5,7 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from clipops.database import make_engine
+from clipops.metrics import dashboard_metrics
 from clipops.models import (
     AccountProfile,
     Base,
@@ -77,6 +78,14 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         session.flush()
         persist_segments(session, request.transcript_id, request.raw_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
+
+
+@app.get("/dashboard", response_model=None)
+def dashboard() -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        return dashboard_metrics(session)
 
 
 @app.post("/performance-records", response_model=None)

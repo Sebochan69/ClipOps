@@ -49,6 +49,8 @@ def test_only_approved_candidate_can_be_queued(client: TestClient) -> None:
     assert client.get("/publishing-queue").json()[0]["account"] == "Account"
     performance = client.post("/performance-records", json={"queue_item_id": "queue:higher", "views": 1000, "engagement_rate": 0.12})
     assert performance.json() == {"performance_record_id": "performance:queue:higher", "simulated": True}
+    dashboard = client.get("/dashboard").json()
+    assert dashboard["simulated"] and dashboard["accounts"][0]["published_clips"] == 1
     rejected = client.post("/candidates/lower/queue", json={"scheduled_for": "2026-08-01T09:00:00Z"})
     assert rejected.json()["code"] == "BUSINESS_RULE_VALIDATION_ERROR"
 
