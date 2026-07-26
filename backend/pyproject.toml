@@ -5,6 +5,7 @@ description = "ClipOps API"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi",
+  "sqlalchemy",
   "uvicorn",
 ]
 
