@@ -27,7 +27,7 @@ def client(tmp_path):
                 SourceContent(id="source", title="Source"),
                 AccountProfile(id="account", name="Account", platform="Demo", details={}),
                 WorkflowRun(id="workflow", status="COMPLETED"),
-                ClipCandidate(id="lower", source_content_id="source", workflow_run_id="workflow", account_profile_id="account", start_seconds=0, end_seconds=10, duration_seconds=10, transcript_excerpt="Lower", reason_selected="Reason", confidence=0.5, status="DETECTED"),
+                ClipCandidate(id="lower", source_content_id="source", workflow_run_id="workflow", account_profile_id="account", start_seconds=0, end_seconds=10, duration_seconds=10, transcript_excerpt="Lower", reason_selected="Reason", confidence=0.5, status="NEEDS_REVIEW"),
                 ClipCandidate(id="higher", source_content_id="source", workflow_run_id="workflow", account_profile_id="account", start_seconds=10, end_seconds=20, duration_seconds=10, transcript_excerpt="Higher", reason_selected="Reason", confidence=0.5, status="APPROVED"),
                 GeneratedAsset(id="asset", candidate_id="higher", asset_type="hook", content="Original hook"),
             ]
@@ -41,6 +41,13 @@ def client(tmp_path):
             )
     yield TestClient(app)
     app.state.engine = None
+
+
+def test_review_action_changes_status_and_records_decision(client: TestClient) -> None:
+    response = client.post("/candidates/lower/review", json={"action": "APPROVE"})
+    assert response.json() == {"candidate_id": "lower", "status": "APPROVED"}
+    invalid = client.post("/candidates/higher/review", json={"action": "APPROVE"})
+    assert invalid.json()["code"] == "INVALID_STATE_TRANSITION"
 
 
 def test_candidate_detail_and_asset_edit(client: TestClient) -> None:

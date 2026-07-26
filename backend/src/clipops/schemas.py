@@ -126,6 +126,11 @@ class ReviewDecisionSchema(BaseModel):
     reason: str
 
 
+class ReviewRequest(BaseModel):
+    action: str
+    reason: str = ""
+
+
 class PublishingQueueItemSchema(BaseModel):
     id: str
     candidate_id: str

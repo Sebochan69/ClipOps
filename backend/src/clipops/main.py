@@ -15,7 +15,12 @@ from clipops.models import (
     TranscriptSegment,
     WorkflowRun,
 )
-from clipops.schemas import AssetUpdateRequest, TranscriptValidationRequest
+from clipops.review import InvalidStateTransitionError, review_candidate
+from clipops.schemas import (
+    AssetUpdateRequest,
+    ReviewRequest,
+    TranscriptValidationRequest,
+)
 from clipops.segmentation import persist_segments
 from clipops.transcript_validation import validate_transcript
 
@@ -67,6 +72,19 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         session.flush()
         persist_segments(session, request.transcript_id, request.raw_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
+
+
+@app.post("/candidates/{candidate_id}/review", response_model=None)
+def review(candidate_id: str, request: ReviewRequest) -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        try:
+            candidate = review_candidate(session, candidate_id, request.action, request.reason)
+        except InvalidStateTransitionError as error_message:
+            return error("INVALID_STATE_TRANSITION", str(error_message), "action", "Use a valid lifecycle action.", [], 422)
+        response = {"candidate_id": candidate.id, "status": candidate.status}
+    return response
 
 
 @app.get("/candidates/{candidate_id}", response_model=None)
