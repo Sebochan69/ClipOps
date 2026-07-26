@@ -23,11 +23,24 @@ class MomentDraft:
     reason_selected: str
 
 
+@dataclass(frozen=True)
+class CandidateInput:
+    transcript_excerpt: str
+
+
+@dataclass(frozen=True)
+class AssetDraft:
+    asset_type: str
+    content: str
+
+
 class ModelProvider(Protocol):
     provider_name: str
     model_name: str
 
     def detect_moments(self, segments: Sequence[SegmentInput]) -> list[MomentDraft]: ...
+
+    def generate_assets(self, candidate: CandidateInput) -> list[AssetDraft]: ...
 
 
 class MockModelProvider:
@@ -50,6 +63,16 @@ class MockModelProvider:
                 )
             )
         return moments
+
+    def generate_assets(self, candidate: CandidateInput) -> list[AssetDraft]:
+        excerpt = candidate.transcript_excerpt[:60]
+        return [
+            *(AssetDraft("hook", f"Hook {number}: {excerpt}") for number in range(1, 4)),
+            *(AssetDraft("title", f"Title {number}: Practical takeaway") for number in range(1, 3)),
+            *(AssetDraft("caption", f"Caption {number}: {excerpt}") for number in range(1, 3)),
+            AssetDraft("cta", "Save this practical idea for later."),
+            AssetDraft("editing_note", "Use concise text overlays for the key takeaway."),
+        ]
 
 
 def record_model_run(

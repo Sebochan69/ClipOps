@@ -5,6 +5,7 @@ from clipops.models import (
     AccountProfile,
     Base,
     ClipCandidate,
+    GeneratedAsset,
     ModelRun,
     SourceContent,
     WorkflowRun,
@@ -35,6 +36,7 @@ def test_workflow_creates_six_candidates() -> None:
     result = run_workflow(engine, valid_transcript(), source_content_id="source", account_profile_id="account")
     with Session(engine) as session:
         assert len(session.scalars(select(ClipCandidate).where(ClipCandidate.workflow_run_id == result["workflow_run_id"])).all()) == 6
+        assert len(session.scalars(select(GeneratedAsset)).all()) == 54
 
 
 def test_workflow_records_failed_validation() -> None:

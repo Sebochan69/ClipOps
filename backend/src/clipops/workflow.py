@@ -5,6 +5,8 @@ from langgraph.graph import END, START, StateGraph
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
+from clipops.asset_generation import PROMPT_VERSION as ASSET_PROMPT_VERSION
+from clipops.asset_generation import generate_candidate_assets
 from clipops.model_provider import (
     MockModelProvider,
     ModelProvider,
@@ -54,13 +56,16 @@ def build_workflow(engine: Engine, provider: ModelProvider):
         output = validate_moment_output(moments)
         with Session(engine) as session:
             if state.get("source_content_id") and state.get("account_profile_id"):
-                create_candidates(
+                candidates = create_candidates(
                     session,
                     state["workflow_run_id"],
                     state["source_content_id"],
                     state["account_profile_id"],
                     output,
                 )
+                for candidate in candidates:
+                    generate_candidate_assets(session, candidate, provider)
+                    record_model_run(session, state["workflow_run_id"], provider, ASSET_PROMPT_VERSION, "VALID", raw_output_reference="prompts/asset-generation-v1.md")
             record_model_run(session, state["workflow_run_id"], provider, PROMPT_VERSION, "VALID", raw_output_reference="prompts/moment-detection-v1.md")
         return {"moments": moments}
 
