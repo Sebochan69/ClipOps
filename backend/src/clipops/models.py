@@ -75,6 +75,10 @@ class ModelRun(Base):
     prompt_version: Mapped[str] = mapped_column(String)
     validation_result: Mapped[str] = mapped_column(String)
     repair_count: Mapped[int] = mapped_column(Integer, default=0)
+    raw_output_reference: Mapped[str | None] = mapped_column(String, nullable=True)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    estimated_cost: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class ClipCandidate(Base):

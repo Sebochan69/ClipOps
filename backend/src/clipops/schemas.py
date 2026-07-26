@@ -73,6 +73,10 @@ class ModelRunSchema(BaseModel):
     prompt_version: str
     validation_result: str
     repair_count: int = Field(ge=0)
+    raw_output_reference: str | None = None
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    estimated_cost: float | None = Field(default=None, ge=0)
 
 
 class ClipScoreSchema(BaseModel):
