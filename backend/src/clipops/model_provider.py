@@ -34,6 +34,14 @@ class AssetDraft:
     content: str
 
 
+@dataclass(frozen=True)
+class WeeklyRecommendationContext:
+    approval_rate: float
+    median_engagement_rate: float
+    experiment_winner: str | None
+    top_clip_count: int
+
+
 class ModelProvider(Protocol):
     provider_name: str
     model_name: str
@@ -73,6 +81,20 @@ class MockModelProvider:
             AssetDraft("cta", "Save this practical idea for later."),
             AssetDraft("editing_note", "Use concise text overlays for the key takeaway."),
         ]
+
+    def draft_weekly_recommendation(self, context: WeeklyRecommendationContext) -> dict[str, str]:
+        winner = context.experiment_winner or "the clearer hook"
+        return {
+            "name": "Mock weekly hook refinement",
+            "hypothesis": f"{winner} will lift simulated engagement when tested against a curiosity hook.",
+            "primary_metric": "engagement_rate",
+            "variant_a": "Current winning hook",
+            "variant_b": "Curiosity hook",
+            "rationale": (
+                "Mock weekly recommendation drafted from structured metrics only; "
+                f"approval rate is {context.approval_rate:.0%} across {context.top_clip_count} highlighted clips."
+            ),
+        }
 
 
 def record_model_run(

@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from datetime import date
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from clipops.models import CandidateStatus
 
@@ -170,7 +172,22 @@ class ContentExperimentSchema(BaseModel):
 
 
 class WeeklyGrowthReportSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     week_range: str
+    accounts_covered: list[dict[str, object]]
     summary: str
+    fleet_snapshot: dict[str, object]
+    top_clips: list[dict[str, object]]
+    underperforming_clips: list[dict[str, object]]
+    experiment_readout: dict[str, object]
+    workflow_metrics: dict[str, object]
+    next_experiment: dict[str, object]
+    content_backlog_suggestions: list[str]
+    caveats: list[str]
     simulated: bool = True
+
+
+class WeeklyReportRequest(BaseModel):
+    week_end: date | None = None

@@ -28,9 +28,12 @@ from clipops.schemas import (
     QueueRequest,
     ReviewRequest,
     TranscriptValidationRequest,
+    WeeklyGrowthReportSchema,
+    WeeklyReportRequest,
 )
 from clipops.segmentation import persist_segments
 from clipops.transcript_validation import validate_transcript
+from clipops.weekly_report import generate_weekly_report
 
 app = FastAPI(title="ClipOps API")
 app.add_middleware(
@@ -98,6 +101,15 @@ def dashboard() -> object:
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         return dashboard_metrics(session)
+
+
+@app.post("/weekly-reports", response_model=None)
+def create_weekly_report(request: WeeklyReportRequest) -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        report = generate_weekly_report(session, request.week_end)
+        return WeeklyGrowthReportSchema.model_validate(report).model_dump()
 
 
 @app.post("/performance-records", response_model=None)
