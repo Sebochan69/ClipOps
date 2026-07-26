@@ -11,6 +11,7 @@ from clipops.models import (
     ClipCandidate,
     ClipScore,
     GeneratedAsset,
+    PerformanceRecord,
     PublishingQueueItem,
     SourceContent,
     Transcript,
@@ -20,6 +21,7 @@ from clipops.models import (
 from clipops.review import InvalidStateTransitionError, review_candidate
 from clipops.schemas import (
     AssetUpdateRequest,
+    PerformanceImportRequest,
     QueueRequest,
     ReviewRequest,
     TranscriptValidationRequest,
@@ -75,6 +77,24 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         session.flush()
         persist_segments(session, request.transcript_id, request.raw_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
+
+
+@app.post("/performance-records", response_model=None)
+def import_performance(request: PerformanceImportRequest) -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        queue_item = session.get(PublishingQueueItem, request.queue_item_id)
+        if not queue_item:
+            return error("SIMULATED_DATA_IMPORT_ERROR", "Queue item was not found.", "queue_item_id", "Queue an approved candidate before importing metrics.", [], 422)
+        record = PerformanceRecord(id=f"performance:{request.queue_item_id}", queue_item_id=request.queue_item_id, views=request.views, engagement_rate=request.engagement_rate, simulated=True)
+        session.merge(record)
+        candidate = session.get(ClipCandidate, queue_item.candidate_id)
+        if candidate:
+            candidate.status = "PUBLISHED"
+        session.commit()
+        response = {"performance_record_id": record.id, "simulated": True}
+    return response
 
 
 @app.get("/publishing-queue", response_model=None)

@@ -151,6 +151,12 @@ class PerformanceRecordSchema(BaseModel):
     simulated: bool = True
 
 
+class PerformanceImportRequest(BaseModel):
+    queue_item_id: str
+    views: int = Field(ge=0)
+    engagement_rate: float = Field(ge=0)
+
+
 class ContentExperimentSchema(BaseModel):
     id: str
     name: str
