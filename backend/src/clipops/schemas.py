@@ -22,6 +22,13 @@ class TranscriptSegmentSchema(BaseModel):
     text: str
 
 
+class TranscriptValidationRequest(BaseModel):
+    transcript_id: str
+    source_content_id: str
+    source_title: str
+    raw_text: str
+
+
 class ContentBriefSchema(BaseModel):
     id: str
     name: str
