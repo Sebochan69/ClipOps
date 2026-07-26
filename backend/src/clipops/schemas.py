@@ -115,6 +115,10 @@ class GeneratedAssetSchema(BaseModel):
     content: str
 
 
+class AssetUpdateRequest(BaseModel):
+    content: str = Field(min_length=1)
+
+
 class ReviewDecisionSchema(BaseModel):
     id: str
     candidate_id: str

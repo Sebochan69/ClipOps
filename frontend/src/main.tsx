@@ -2,14 +2,19 @@ import { ChangeEvent, FormEvent, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-type ApiError = {
-  code: string;
-  message: string;
-  details?: { line_number: number; message: string; suggested_action: string }[];
-};
-
+type ApiError = { message: string; details?: { line_number: number; message: string }[] };
 type ValidationResponse = { line_count: number; warnings: string[] };
-type Segment = { id: string; start_seconds: number; end_seconds: number; text: string };
+type Asset = { id: string; asset_type: string; content: string };
+type Candidate = {
+  candidate_id: string;
+  start_seconds: number;
+  end_seconds: number;
+  transcript_excerpt: string;
+  reason_selected: string;
+  confidence: number;
+  scores: Record<string, number | string> | null;
+  assets: Asset[];
+};
 
 function App() {
   const [sourceTitle, setSourceTitle] = useState("");
@@ -18,7 +23,9 @@ function App() {
   const [message, setMessage] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [transcriptId, setTranscriptId] = useState("");
-  const [segments, setSegments] = useState<Segment[] | null>(null);
+  const [segments, setSegments] = useState<{ id: string; start_seconds: number; end_seconds: number; text: string }[] | null>(null);
+  const [candidateId, setCandidateId] = useState("");
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
 
   async function loadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -35,12 +42,7 @@ function App() {
       const response = await fetch("http://127.0.0.1:8000/transcripts/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          transcript_id: nextTranscriptId,
-          source_content_id: crypto.randomUUID(),
-          source_title: sourceTitle,
-          raw_text: rawText,
-        }),
+        body: JSON.stringify({ transcript_id: nextTranscriptId, source_content_id: crypto.randomUUID(), source_title: sourceTitle, raw_text: rawText }),
       });
       const body = (await response.json()) as ValidationResponse | ApiError;
       if (!response.ok) {
@@ -62,45 +64,40 @@ function App() {
 
   async function loadSegments() {
     const response = await fetch(`http://127.0.0.1:8000/transcripts/${transcriptId}/segments`);
-    if (!response.ok) {
-      setMessage("Could not load transcript segments.");
-      setStatus("error");
-      return;
-    }
-    setSegments((await response.json()) as Segment[]);
+    if (!response.ok) return setMessage("Could not load transcript segments.");
+    setSegments((await response.json()) as NonNullable<typeof segments>);
   }
 
-  return (
-    <main>
-      <h1>ClipOps</h1>
-      <p>Start with a timestamped transcript.</p>
-      <form onSubmit={submit}>
-        <label>
-          Source title
-          <input value={sourceTitle} onChange={(event) => setSourceTitle(event.target.value)} required />
-        </label>
-        <label>
-          Paste transcript
-          <textarea value={rawText} onChange={(event) => setRawText(event.target.value)} required rows={14} />
-        </label>
-        <label>
-          Or upload a .txt or .md transcript
-          <input type="file" accept=".txt,.md,text/plain" onChange={loadFile} />
-        </label>
-        <button disabled={status === "loading"}>{status === "loading" ? "Validating…" : "Validate transcript"}</button>
-      </form>
-      {status !== "idle" && <p role={status === "error" ? "alert" : "status"}>{message}</p>}
-      {warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
-      <button disabled={status !== "valid"} onClick={loadSegments}>Review segments</button>
-      {segments?.length === 0 && <p>No segments are available.</p>}
-      {segments && segments.map((segment) => (
-        <article key={segment.id}>
-          <strong>{segment.start_seconds}s–{segment.end_seconds}s</strong>
-          <p>{segment.text}</p>
-        </article>
-      ))}
-    </main>
-  );
+  async function loadCandidate() {
+    const response = await fetch(`http://127.0.0.1:8000/candidates/${candidateId}`);
+    if (!response.ok) return setMessage("Candidate was not found.");
+    setCandidate((await response.json()) as Candidate);
+  }
+
+  async function saveAsset(asset: Asset) {
+    if (!candidate) return;
+    await fetch(`http://127.0.0.1:8000/candidates/${candidate.candidate_id}/assets/${asset.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: asset.content }),
+    });
+  }
+
+  return <main>
+    <h1>ClipOps</h1><p>Start with a timestamped transcript.</p>
+    <form onSubmit={submit}>
+      <label>Source title<input value={sourceTitle} onChange={(event) => setSourceTitle(event.target.value)} required /></label>
+      <label>Paste transcript<textarea value={rawText} onChange={(event) => setRawText(event.target.value)} required rows={14} /></label>
+      <label>Or upload a .txt or .md transcript<input type="file" accept=".txt,.md,text/plain" onChange={loadFile} /></label>
+      <button disabled={status === "loading"}>{status === "loading" ? "Validating…" : "Validate transcript"}</button>
+    </form>
+    {status !== "idle" && <p role={status === "error" ? "alert" : "status"}>{message}</p>}
+    {warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
+    <button disabled={status !== "valid"} onClick={loadSegments}>Review segments</button>
+    {segments?.map((segment) => <article key={segment.id}><strong>{segment.start_seconds}s–{segment.end_seconds}s</strong><p>{segment.text}</p></article>)}
+    <section><h2>Candidate detail</h2><label>Candidate ID<input value={candidateId} onChange={(event) => setCandidateId(event.target.value)} /></label><button onClick={loadCandidate}>Load candidate</button></section>
+    {candidate && <section><h3>{candidate.start_seconds}s–{candidate.end_seconds}s</h3><p>{candidate.transcript_excerpt}</p><p>{candidate.reason_selected}</p><p>Confidence: {candidate.confidence}</p><pre>{JSON.stringify(candidate.scores, null, 2)}</pre>{candidate.assets.map((asset, index) => <label key={asset.id}>{asset.asset_type}<textarea value={asset.content} onChange={(event) => setCandidate({ ...candidate, assets: candidate.assets.map((item, itemIndex) => itemIndex === index ? { ...item, content: event.target.value } : item) })} /><button onClick={() => saveAsset(asset)}>Save</button></label>)}</section>}
+  </main>;
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

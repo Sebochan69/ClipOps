@@ -8,6 +8,7 @@ from clipops.models import (
     AccountProfile,
     Base,
     ClipCandidate,
+    GeneratedAsset,
     SourceContent,
     WorkflowRun,
 )
@@ -28,6 +29,7 @@ def client(tmp_path):
                 WorkflowRun(id="workflow", status="COMPLETED"),
                 ClipCandidate(id="lower", source_content_id="source", workflow_run_id="workflow", account_profile_id="account", start_seconds=0, end_seconds=10, duration_seconds=10, transcript_excerpt="Lower", reason_selected="Reason", confidence=0.5, status="DETECTED"),
                 ClipCandidate(id="higher", source_content_id="source", workflow_run_id="workflow", account_profile_id="account", start_seconds=10, end_seconds=20, duration_seconds=10, transcript_excerpt="Higher", reason_selected="Reason", confidence=0.5, status="APPROVED"),
+                GeneratedAsset(id="asset", candidate_id="higher", asset_type="hook", content="Original hook"),
             ]
         )
         session.commit()
@@ -39,6 +41,14 @@ def client(tmp_path):
             )
     yield TestClient(app)
     app.state.engine = None
+
+
+def test_candidate_detail_and_asset_edit(client: TestClient) -> None:
+    response = client.get("/candidates/higher")
+    assert response.json()["scores"]["overall_score"] > 0
+    assert response.json()["assets"][0]["content"] == "Original hook"
+    updated = client.patch("/candidates/higher/assets/asset", json={"content": "Edited hook"})
+    assert updated.json() == {"id": "asset", "content": "Edited hook"}
 
 
 def test_candidates_are_ranked_and_include_asset_placeholder(client: TestClient) -> None:

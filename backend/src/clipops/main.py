@@ -9,12 +9,13 @@ from clipops.models import (
     Base,
     ClipCandidate,
     ClipScore,
+    GeneratedAsset,
     SourceContent,
     Transcript,
     TranscriptSegment,
     WorkflowRun,
 )
-from clipops.schemas import TranscriptValidationRequest
+from clipops.schemas import AssetUpdateRequest, TranscriptValidationRequest
 from clipops.segmentation import persist_segments
 from clipops.transcript_validation import validate_transcript
 
@@ -22,7 +23,7 @@ app = FastAPI(title="ClipOps API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "PATCH", "POST"],
     allow_headers=["Content-Type"],
 )
 app.state.engine = None
@@ -66,6 +67,43 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         session.flush()
         persist_segments(session, request.transcript_id, request.raw_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
+
+
+@app.get("/candidates/{candidate_id}", response_model=None)
+def get_candidate(candidate_id: str) -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        candidate = session.get(ClipCandidate, candidate_id)
+        if not candidate:
+            return error("NOT_FOUND", "Candidate was not found.", "candidate_id", "Select a candidate from a workflow run.", [], 404)
+        score = session.scalar(select(ClipScore).where(ClipScore.candidate_id == candidate_id))
+        assets = session.scalars(select(GeneratedAsset).where(GeneratedAsset.candidate_id == candidate_id).order_by(GeneratedAsset.asset_type)).all()
+    return {
+        "candidate_id": candidate.id,
+        "start_seconds": candidate.start_seconds,
+        "end_seconds": candidate.end_seconds,
+        "duration_seconds": candidate.duration_seconds,
+        "transcript_excerpt": candidate.transcript_excerpt,
+        "reason_selected": candidate.reason_selected,
+        "confidence": candidate.confidence,
+        "status": candidate.status,
+        "scores": score and {name: getattr(score, name) for name in ("hook_strength", "standalone_clarity", "novelty", "emotional_intensity", "shareability", "educational_value", "brand_safety", "editing_complexity", "overall_score", "confidence", "explanation")},
+        "assets": [{"id": asset.id, "asset_type": asset.asset_type, "content": asset.content} for asset in assets],
+    }
+
+
+@app.patch("/candidates/{candidate_id}/assets/{asset_id}", response_model=None)
+def update_asset(candidate_id: str, asset_id: str, request: AssetUpdateRequest) -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        asset = session.get(GeneratedAsset, asset_id)
+        if not asset or asset.candidate_id != candidate_id:
+            return error("NOT_FOUND", "Generated asset was not found.", "asset_id", "Load a candidate and select one of its assets.", [], 404)
+        asset.content = request.content
+        session.commit()
+    return {"id": asset_id, "content": request.content}
 
 
 @app.get("/workflow-runs/{workflow_run_id}/candidates", response_model=None)
