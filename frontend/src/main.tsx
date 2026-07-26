@@ -7,7 +7,8 @@ type ValidationResponse = { line_count: number; warnings: string[] };
 type Asset = { id: string; asset_type: string; content: string };
 type QueueCandidate = { candidate_id: string; transcript_excerpt: string; status: string; scores: { overall_score: number } | null };
 type PublishingItem = { queue_item_id: string; status: string; scheduled_for: string; account: string; platform: string; candidate_excerpt: string };
-type Dashboard = { simulated: boolean; approval_rate: number; queue_status: number; accounts: { account: string; published_clips: number; median_engagement_rate: number; health_score: number }[] }; 
+type Dashboard = { simulated: boolean; approval_rate: number; queue_status: number; accounts: { account: string; published_clips: number; median_engagement_rate: number; health_score: number }[] };
+type WeeklyReport = { week_range: string; summary: string; fleet_snapshot: Record<string, unknown>; top_clips: Record<string, unknown>[]; underperforming_clips: Record<string, unknown>[]; experiment_readout: Record<string, unknown>; workflow_metrics: Record<string, unknown>; next_experiment: Record<string, unknown>; content_backlog_suggestions: string[]; caveats: string[]; simulated: boolean }; 
 type Candidate = {
   candidate_id: string;
   start_seconds: number;
@@ -36,6 +37,7 @@ function App() {
   const [publishingQueue, setPublishingQueue] = useState<PublishingItem[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [experiment, setExperiment] = useState<{ name: string; variant_a: string; variant_b: string; confidence_note: string | null } | null>(null);
+  const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
 
   async function loadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -76,6 +78,12 @@ function App() {
     const response = await fetch(`http://127.0.0.1:8000/transcripts/${transcriptId}/segments`);
     if (!response.ok) return setMessage("Could not load transcript segments.");
     setSegments((await response.json()) as NonNullable<typeof segments>);
+  }
+
+  async function loadWeeklyReport() {
+    const response = await fetch("http://127.0.0.1:8000/weekly-reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    if (!response.ok) return setMessage("Could not create weekly report.");
+    setWeeklyReport((await response.json()) as WeeklyReport);
   }
 
   async function createExperiment() {
@@ -142,6 +150,7 @@ function App() {
     {segments?.map((segment) => <article key={segment.id}><strong>{segment.start_seconds}s–{segment.end_seconds}s</strong><p>{segment.text}</p></article>)}
     <section><h2>Review queue</h2><label>Workflow run ID<input value={workflowRunId} onChange={(event) => setWorkflowRunId(event.target.value)} /></label><label>Status filter<select value={queueStatus} onChange={(event) => setQueueStatus(event.target.value)}><option value="">All</option><option>NEEDS_REVIEW</option><option>APPROVED</option><option>REJECTED</option><option>EDITING</option></select></label><label>Rejection reason<input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} /></label><button onClick={loadQueue}>Load queue</button>{queue.map((item) => <article key={item.candidate_id}><strong>{item.status} · {item.scores?.overall_score ?? "Unscored"}</strong><p>{item.transcript_excerpt}</p><button onClick={() => reviewCandidate(item.candidate_id, "SUBMIT_FOR_REVIEW")}>Submit</button><button onClick={() => reviewCandidate(item.candidate_id, "APPROVE")}>Approve</button><button onClick={() => reviewCandidate(item.candidate_id, "REJECT")}>Reject</button><button onClick={() => reviewCandidate(item.candidate_id, "EDIT")}>Edit</button></article>)}</section>
     <section><h2>Fleet dashboard</h2><button onClick={loadDashboard}>Load dashboard</button>{dashboard && <><p className="warning">Simulated performance data</p><p>Approval rate: {Math.round(dashboard.approval_rate * 100)}% · Queue: {dashboard.queue_status}</p>{dashboard.accounts.map((account) => <article key={account.account}><strong>{account.account}</strong><p>Health: {account.health_score} · Published: {account.published_clips} · Median engagement: {account.median_engagement_rate}</p></article>)}</>}</section>
+    <section><h2>Weekly report</h2><button onClick={loadWeeklyReport}>Generate weekly report</button>{weeklyReport && <article><p className="warning">Simulated, directional data only.</p><h3>{weeklyReport.week_range}</h3><p>{weeklyReport.summary}</p><h4>Fleet snapshot</h4><pre>{JSON.stringify(weeklyReport.fleet_snapshot, null, 2)}</pre><h4>Top clips</h4><pre>{JSON.stringify(weeklyReport.top_clips, null, 2)}</pre><h4>Underperforming clips</h4><pre>{JSON.stringify(weeklyReport.underperforming_clips, null, 2)}</pre><h4>Experiment readout</h4><pre>{JSON.stringify(weeklyReport.experiment_readout, null, 2)}</pre><h4>Workflow metrics</h4><pre>{JSON.stringify(weeklyReport.workflow_metrics, null, 2)}</pre><h4>Next experiment</h4><pre>{JSON.stringify(weeklyReport.next_experiment, null, 2)}</pre><h4>Backlog suggestions</h4><ul>{weeklyReport.content_backlog_suggestions.map((item) => <li key={item}>{item}</li>)}</ul><h4>Caveats</h4><ul>{weeklyReport.caveats.map((item) => <li key={item}>{item}</li>)}</ul></article>}</section>
     <section><h2>Experiment readout</h2><button onClick={createExperiment}>Create hook comparison</button>{experiment && <article><strong>{experiment.name}</strong><p>{experiment.variant_a} vs {experiment.variant_b}</p><p className="warning">{experiment.confidence_note}</p></article>}</section>
     <section><h2>Publishing queue</h2><button onClick={loadPublishingQueue}>Load publishing queue</button>{publishingQueue.length === 0 && <p>No queued candidates.</p>}{publishingQueue.map((item) => <article key={item.queue_item_id}><strong>{item.account} · {item.platform}</strong><p>{item.scheduled_for} · {item.status}</p><p>{item.candidate_excerpt}</p></article>)}</section>
     <section><h2>Candidate detail</h2><label>Candidate ID<input value={candidateId} onChange={(event) => setCandidateId(event.target.value)} /></label><button onClick={loadCandidate}>Load candidate</button></section>
