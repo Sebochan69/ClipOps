@@ -5,7 +5,15 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from clipops.database import make_engine
-from clipops.models import Base, SourceContent, Transcript, TranscriptSegment
+from clipops.models import (
+    Base,
+    ClipCandidate,
+    ClipScore,
+    SourceContent,
+    Transcript,
+    TranscriptSegment,
+    WorkflowRun,
+)
 from clipops.schemas import TranscriptValidationRequest
 from clipops.segmentation import persist_segments
 from clipops.transcript_validation import validate_transcript
@@ -58,6 +66,37 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         session.flush()
         persist_segments(session, request.transcript_id, request.raw_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
+
+
+@app.get("/workflow-runs/{workflow_run_id}/candidates", response_model=None)
+def list_candidates(workflow_run_id: str, status: str | None = None) -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        if not session.get(WorkflowRun, workflow_run_id):
+            return error("NOT_FOUND", "Workflow run was not found.", "workflow_run_id", "Run a workflow before viewing candidates.", [], 404)
+        query = select(ClipCandidate, ClipScore).outerjoin(ClipScore, ClipScore.candidate_id == ClipCandidate.id).where(
+            ClipCandidate.workflow_run_id == workflow_run_id
+        )
+        if status:
+            query = query.where(ClipCandidate.status == status)
+        rows = session.execute(query).all()
+    rows.sort(key=lambda row: row[1].overall_score if row[1] else -1, reverse=True)
+    return [
+        {
+            "candidate_id": candidate.id,
+            "start_seconds": candidate.start_seconds,
+            "end_seconds": candidate.end_seconds,
+            "duration_seconds": candidate.duration_seconds,
+            "transcript_excerpt": candidate.transcript_excerpt,
+            "reason_selected": candidate.reason_selected,
+            "confidence": candidate.confidence,
+            "status": candidate.status,
+            "scores": {"overall_score": score.overall_score, "explanation": score.explanation} if score else None,
+            "assets": [],
+        }
+        for candidate, score in rows
+    ]
 
 
 @app.get("/transcripts/{transcript_id}/segments", response_model=None)
