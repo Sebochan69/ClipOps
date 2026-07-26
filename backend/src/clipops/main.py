@@ -10,6 +10,7 @@ from clipops.models import (
     ClipCandidate,
     ClipScore,
     GeneratedAsset,
+    PublishingQueueItem,
     SourceContent,
     Transcript,
     TranscriptSegment,
@@ -18,6 +19,7 @@ from clipops.models import (
 from clipops.review import InvalidStateTransitionError, review_candidate
 from clipops.schemas import (
     AssetUpdateRequest,
+    QueueRequest,
     ReviewRequest,
     TranscriptValidationRequest,
 )
@@ -72,6 +74,22 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         session.flush()
         persist_segments(session, request.transcript_id, request.raw_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
+
+
+@app.post("/candidates/{candidate_id}/queue", response_model=None)
+def queue_candidate(candidate_id: str, request: QueueRequest) -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        candidate = session.get(ClipCandidate, candidate_id)
+        if not candidate or candidate.status != "APPROVED":
+            return error("BUSINESS_RULE_VALIDATION_ERROR", "Only approved candidates can be queued.", "candidate_id", "Approve the candidate before queueing.", [], 422)
+        item = PublishingQueueItem(id=f"queue:{candidate_id}", candidate_id=candidate_id, account_profile_id=candidate.account_profile_id, status="QUEUED", scheduled_for=request.scheduled_for)
+        session.add(item)
+        candidate.status = "READY_TO_PUBLISH"
+        session.commit()
+        response = {"queue_item_id": item.id, "status": item.status}
+    return response
 
 
 @app.post("/candidates/{candidate_id}/review", response_model=None)

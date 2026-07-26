@@ -136,6 +136,7 @@ class PublishingQueueItem(Base):
     candidate_id: Mapped[str] = mapped_column(ForeignKey("clip_candidates.id"), unique=True)
     account_profile_id: Mapped[str] = mapped_column(ForeignKey("account_profiles.id"))
     status: Mapped[str] = mapped_column(String)
+    scheduled_for: Mapped[str] = mapped_column(String)
 
 
 class PerformanceRecord(Base):

@@ -43,6 +43,13 @@ def client(tmp_path):
     app.state.engine = None
 
 
+def test_only_approved_candidate_can_be_queued(client: TestClient) -> None:
+    response = client.post("/candidates/higher/queue", json={"scheduled_for": "2026-08-01T09:00:00Z"})
+    assert response.json() == {"queue_item_id": "queue:higher", "status": "QUEUED"}
+    rejected = client.post("/candidates/lower/queue", json={"scheduled_for": "2026-08-01T09:00:00Z"})
+    assert rejected.json()["code"] == "BUSINESS_RULE_VALIDATION_ERROR"
+
+
 def test_review_action_changes_status_and_records_decision(client: TestClient) -> None:
     response = client.post("/candidates/lower/review", json={"action": "APPROVE"})
     assert response.json() == {"candidate_id": "lower", "status": "APPROVED"}

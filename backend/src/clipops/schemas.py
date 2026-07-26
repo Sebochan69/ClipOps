@@ -136,6 +136,11 @@ class PublishingQueueItemSchema(BaseModel):
     candidate_id: str
     account_profile_id: str
     status: str
+    scheduled_for: str
+
+
+class QueueRequest(BaseModel):
+    scheduled_for: str
 
 
 class PerformanceRecordSchema(BaseModel):
