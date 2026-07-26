@@ -28,6 +28,14 @@ def payload(raw_text: str) -> dict[str, str]:
     }
 
 
+def test_frontend_origin_is_allowed(client: TestClient) -> None:
+    response = client.options(
+        "/transcripts/validate",
+        headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "POST"},
+    )
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
 def test_valid_transcript_is_persisted(client: TestClient) -> None:
     response = client.post("/transcripts/validate", json=payload(transcript_lines()))
     assert response.json() == {"transcript_id": "transcript-1", "line_count": 10, "warnings": []}

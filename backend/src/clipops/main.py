@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
@@ -9,6 +10,12 @@ from clipops.schemas import TranscriptValidationRequest
 from clipops.transcript_validation import validate_transcript
 
 app = FastAPI(title="ClipOps API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["POST"],
+    allow_headers=["Content-Type"],
+)
 app.state.engine = None
 
 

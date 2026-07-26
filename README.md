@@ -28,6 +28,8 @@ npm install
 npm run dev
 ```
 
+Keep the backend running while using the transcript form. The form accepts pasted text or a `.txt`/`.md` file and enables the next step only after validation succeeds.
+
 ## Checks
 
 ```bash
