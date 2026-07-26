@@ -11,6 +11,7 @@ from clipops.models import (
     Base,
     ClipCandidate,
     ClipScore,
+    ContentExperiment,
     GeneratedAsset,
     PerformanceRecord,
     PublishingQueueItem,
@@ -22,6 +23,7 @@ from clipops.models import (
 from clipops.review import InvalidStateTransitionError, review_candidate
 from clipops.schemas import (
     AssetUpdateRequest,
+    ContentExperimentSchema,
     PerformanceImportRequest,
     QueueRequest,
     ReviewRequest,
@@ -78,6 +80,16 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         session.flush()
         persist_segments(session, request.transcript_id, request.raw_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
+
+
+@app.post("/experiments", response_model=None)
+def create_experiment(request: ContentExperimentSchema) -> object:
+    engine: Engine = app.state.engine or make_engine()
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(ContentExperiment(**request.model_dump()))
+        session.commit()
+    return request.model_dump()
 
 
 @app.get("/dashboard", response_model=None)

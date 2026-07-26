@@ -154,6 +154,11 @@ class ContentExperiment(Base):
     name: Mapped[str] = mapped_column(String)
     hypothesis: Mapped[str] = mapped_column(Text)
     primary_metric: Mapped[str] = mapped_column(String)
+    variant_a: Mapped[str] = mapped_column(String)
+    variant_b: Mapped[str] = mapped_column(String)
+    result_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    winner: Mapped[str | None] = mapped_column(String, nullable=True)
+    confidence_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class WeeklyGrowthReport(Base):

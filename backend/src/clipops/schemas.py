@@ -162,6 +162,11 @@ class ContentExperimentSchema(BaseModel):
     name: str
     hypothesis: str
     primary_metric: str
+    variant_a: str
+    variant_b: str
+    result_summary: str | None = None
+    winner: str | None = None
+    confidence_note: str | None = None
 
 
 class WeeklyGrowthReportSchema(BaseModel):
