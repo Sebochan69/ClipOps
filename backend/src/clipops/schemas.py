@@ -63,6 +63,7 @@ class AccountProfileSchema(BaseModel):
 class WorkflowRunSchema(BaseModel):
     id: str
     status: str
+    error_message: str | None = None
 
 
 class ModelRunSchema(BaseModel):

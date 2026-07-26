@@ -64,6 +64,7 @@ class WorkflowRun(Base):
     __tablename__ = "workflow_runs"
     id: Mapped[str] = mapped_column(String, primary_key=True)
     status: Mapped[str] = mapped_column(String)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ModelRun(Base):
