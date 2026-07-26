@@ -89,9 +89,9 @@ class ClipScoreSchema(BaseModel):
     educational_value: int = Field(ge=1, le=5)
     brand_safety: int = Field(ge=1, le=5)
     editing_complexity: int = Field(ge=1, le=5)
-    overall_score: int = Field(ge=0, le=100)
+    overall_score: int = Field(default=0, ge=0, le=100)
     confidence: float = Field(ge=0, le=1)
-    explanation: str
+    explanation: str = ""
 
 
 class ClipCandidateSchema(BaseModel):
