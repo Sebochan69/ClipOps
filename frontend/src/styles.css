@@ -1,8 +1,13 @@
-body { font-family: system-ui, sans-serif; margin: 0; background: #f5f6f8; color: #172033; }
+body { font-family: system-ui, sans-serif; margin: 0; background: #f5f6f8; color: #172033; line-height: 1.5; }
 main { max-width: 720px; margin: 3rem auto; padding: 2rem; background: white; border-radius: 12px; }
+section { border-top: 1px solid #d8dce4; margin-top: 2rem; padding-top: 1rem; }
 form, label { display: grid; gap: .5rem; }
 form { margin: 1.5rem 0; }
-input, textarea, button { font: inherit; padding: .65rem; }
+input, textarea, select, button { font: inherit; padding: .65rem; }
 textarea { resize: vertical; }
-button { width: fit-content; }
+button { width: fit-content; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .6; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #2368d8; outline-offset: 2px; }
+article { background: #f7f9fc; border-radius: 8px; margin: 1rem 0; padding: 1rem; }
+pre { overflow-x: auto; white-space: pre-wrap; }
 .warning { color: #7a4a00; }
