@@ -6,7 +6,8 @@ type ApiError = { message: string; details?: { line_number: number; message: str
 type ValidationResponse = { line_count: number; warnings: string[] };
 type Asset = { id: string; asset_type: string; content: string };
 type QueueCandidate = { candidate_id: string; transcript_excerpt: string; status: string; scores: { overall_score: number } | null };
-type PublishingItem = { queue_item_id: string; status: string; scheduled_for: string; account: string; platform: string; candidate_excerpt: string }; 
+type PublishingItem = { queue_item_id: string; status: string; scheduled_for: string; account: string; platform: string; candidate_excerpt: string };
+type Dashboard = { simulated: boolean; approval_rate: number; queue_status: number; accounts: { account: string; published_clips: number; median_engagement_rate: number; health_score: number }[] }; 
 type Candidate = {
   candidate_id: string;
   start_seconds: number;
@@ -33,6 +34,7 @@ function App() {
   const [queueStatus, setQueueStatus] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [publishingQueue, setPublishingQueue] = useState<PublishingItem[]>([]);
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
 
   async function loadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -73,6 +75,12 @@ function App() {
     const response = await fetch(`http://127.0.0.1:8000/transcripts/${transcriptId}/segments`);
     if (!response.ok) return setMessage("Could not load transcript segments.");
     setSegments((await response.json()) as NonNullable<typeof segments>);
+  }
+
+  async function loadDashboard() {
+    const response = await fetch("http://127.0.0.1:8000/dashboard");
+    if (!response.ok) return setMessage("Could not load dashboard.");
+    setDashboard((await response.json()) as Dashboard);
   }
 
   async function loadPublishingQueue() {
@@ -126,6 +134,7 @@ function App() {
     <button disabled={status !== "valid"} onClick={loadSegments}>Review segments</button>
     {segments?.map((segment) => <article key={segment.id}><strong>{segment.start_seconds}s–{segment.end_seconds}s</strong><p>{segment.text}</p></article>)}
     <section><h2>Review queue</h2><label>Workflow run ID<input value={workflowRunId} onChange={(event) => setWorkflowRunId(event.target.value)} /></label><label>Status filter<select value={queueStatus} onChange={(event) => setQueueStatus(event.target.value)}><option value="">All</option><option>NEEDS_REVIEW</option><option>APPROVED</option><option>REJECTED</option><option>EDITING</option></select></label><label>Rejection reason<input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} /></label><button onClick={loadQueue}>Load queue</button>{queue.map((item) => <article key={item.candidate_id}><strong>{item.status} · {item.scores?.overall_score ?? "Unscored"}</strong><p>{item.transcript_excerpt}</p><button onClick={() => reviewCandidate(item.candidate_id, "SUBMIT_FOR_REVIEW")}>Submit</button><button onClick={() => reviewCandidate(item.candidate_id, "APPROVE")}>Approve</button><button onClick={() => reviewCandidate(item.candidate_id, "REJECT")}>Reject</button><button onClick={() => reviewCandidate(item.candidate_id, "EDIT")}>Edit</button></article>)}</section>
+    <section><h2>Fleet dashboard</h2><button onClick={loadDashboard}>Load dashboard</button>{dashboard && <><p className="warning">Simulated performance data</p><p>Approval rate: {Math.round(dashboard.approval_rate * 100)}% · Queue: {dashboard.queue_status}</p>{dashboard.accounts.map((account) => <article key={account.account}><strong>{account.account}</strong><p>Health: {account.health_score} · Published: {account.published_clips} · Median engagement: {account.median_engagement_rate}</p></article>)}</>}</section>
     <section><h2>Publishing queue</h2><button onClick={loadPublishingQueue}>Load publishing queue</button>{publishingQueue.length === 0 && <p>No queued candidates.</p>}{publishingQueue.map((item) => <article key={item.queue_item_id}><strong>{item.account} · {item.platform}</strong><p>{item.scheduled_for} · {item.status}</p><p>{item.candidate_excerpt}</p></article>)}</section>
     <section><h2>Candidate detail</h2><label>Candidate ID<input value={candidateId} onChange={(event) => setCandidateId(event.target.value)} /></label><button onClick={loadCandidate}>Load candidate</button></section>
     {candidate && <section><h3>{candidate.start_seconds}s–{candidate.end_seconds}s</h3><p>{candidate.transcript_excerpt}</p><p>{candidate.reason_selected}</p><p>Confidence: {candidate.confidence}</p><pre>{JSON.stringify(candidate.scores, null, 2)}</pre>{candidate.assets.map((asset, index) => <label key={asset.id}>{asset.asset_type}<textarea value={asset.content} onChange={(event) => setCandidate({ ...candidate, assets: candidate.assets.map((item, itemIndex) => itemIndex === index ? { ...item, content: event.target.value } : item) })} /><button onClick={() => saveAsset(asset)}>Save</button></label>)}</section>}
