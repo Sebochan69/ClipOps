@@ -43,6 +43,19 @@ def test_valid_transcript_is_persisted(client: TestClient) -> None:
         assert session.get(Transcript, "transcript-1") is not None
 
 
+def test_segments_are_available_after_validation(client: TestClient) -> None:
+    client.post("/transcripts/validate", json=payload(transcript_lines()))
+    response = client.get("/transcripts/transcript-1/segments")
+    assert response.status_code == 200
+    assert response.json()[0]["text"] == "line 0\nline 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9"
+
+
+def test_missing_transcript_segments_returns_not_found(client: TestClient) -> None:
+    response = client.get("/transcripts/missing/segments")
+    assert response.status_code == 404
+    assert response.json()["code"] == "NOT_FOUND"
+
+
 def test_large_gap_returns_warning(client: TestClient) -> None:
     raw_text = "\n".join(["[00:00] first"] + [f"[02:{second:02d}] line" for second in range(10, 19)])
     response = client.post("/transcripts/validate", json=payload(raw_text))

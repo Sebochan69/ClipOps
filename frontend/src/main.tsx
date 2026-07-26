@@ -9,6 +9,7 @@ type ApiError = {
 };
 
 type ValidationResponse = { line_count: number; warnings: string[] };
+type Segment = { id: string; start_seconds: number; end_seconds: number; text: string };
 
 function App() {
   const [sourceTitle, setSourceTitle] = useState("");
@@ -16,6 +17,8 @@ function App() {
   const [status, setStatus] = useState<"idle" | "loading" | "valid" | "error">("idle");
   const [message, setMessage] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [transcriptId, setTranscriptId] = useState("");
+  const [segments, setSegments] = useState<Segment[] | null>(null);
 
   async function loadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -26,12 +29,14 @@ function App() {
     event.preventDefault();
     setStatus("loading");
     setWarnings([]);
+    setSegments(null);
+    const nextTranscriptId = crypto.randomUUID();
     try {
       const response = await fetch("http://127.0.0.1:8000/transcripts/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          transcript_id: crypto.randomUUID(),
+          transcript_id: nextTranscriptId,
           source_content_id: crypto.randomUUID(),
           source_title: sourceTitle,
           raw_text: rawText,
@@ -47,11 +52,22 @@ function App() {
       const result = body as ValidationResponse;
       setMessage(`Transcript validated: ${result.line_count} timestamped lines.`);
       setWarnings(result.warnings);
+      setTranscriptId(nextTranscriptId);
       setStatus("valid");
     } catch {
       setMessage("Could not reach the ClipOps API. Start the backend and try again.");
       setStatus("error");
     }
+  }
+
+  async function loadSegments() {
+    const response = await fetch(`http://127.0.0.1:8000/transcripts/${transcriptId}/segments`);
+    if (!response.ok) {
+      setMessage("Could not load transcript segments.");
+      setStatus("error");
+      return;
+    }
+    setSegments((await response.json()) as Segment[]);
   }
 
   return (
@@ -75,7 +91,14 @@ function App() {
       </form>
       {status !== "idle" && <p role={status === "error" ? "alert" : "status"}>{message}</p>}
       {warnings.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
-      <button disabled={status !== "valid"}>Continue to segmentation</button>
+      <button disabled={status !== "valid"} onClick={loadSegments}>Review segments</button>
+      {segments?.length === 0 && <p>No segments are available.</p>}
+      {segments && segments.map((segment) => (
+        <article key={segment.id}>
+          <strong>{segment.start_seconds}s–{segment.end_seconds}s</strong>
+          <p>{segment.text}</p>
+        </article>
+      ))}
     </main>
   );
 }
