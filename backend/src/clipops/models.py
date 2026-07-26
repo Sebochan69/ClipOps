@@ -39,6 +39,8 @@ class TranscriptSegment(Base):
     transcript_id: Mapped[str] = mapped_column(ForeignKey("transcripts.id"))
     start_seconds: Mapped[int] = mapped_column(Integer)
     end_seconds: Mapped[int] = mapped_column(Integer)
+    source_line_start: Mapped[int] = mapped_column(Integer)
+    source_line_end: Mapped[int] = mapped_column(Integer)
     text: Mapped[str] = mapped_column(Text)
 
 

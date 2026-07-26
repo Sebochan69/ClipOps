@@ -19,6 +19,8 @@ class TranscriptSegmentSchema(BaseModel):
     transcript_id: str
     start_seconds: int = Field(ge=0)
     end_seconds: int = Field(ge=0)
+    source_line_start: int = Field(ge=1)
+    source_line_end: int = Field(ge=1)
     text: str
 
 
