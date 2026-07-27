@@ -33,6 +33,7 @@ from clipops.schemas import (
     WeeklyReportRequest,
 )
 from clipops.segmentation import persist_segments
+from clipops.srt_adapter import parse_srt
 from clipops.transcript_validation import validate_transcript
 from clipops.weekly_report import generate_weekly_report
 
@@ -58,11 +59,19 @@ def error(code: str, message: str, field: str, suggested_action: str, details: l
     )
 
 
+def normalize_transcript_input(raw_text: str) -> str:
+    srt_result = parse_srt(raw_text)
+    if srt_result.blocks and not srt_result.issues:
+        return srt_result.normalized_text
+    return raw_text
+
+
 @app.post("/transcripts/validate", response_model=None)
 def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONResponse:
     engine: Engine = app.state.engine or make_engine()
     Base.metadata.create_all(engine)
-    result = validate_transcript(request.raw_text)
+    transcript_text = normalize_transcript_input(request.raw_text)
+    result = validate_transcript(transcript_text)
     if result.issues:
         code = "TRANSCRIPT_PARSE_ERROR" if any(issue.line_number and "Invalid" in issue.message for issue in result.issues) else "TRANSCRIPT_VALIDATION_ERROR"
         return error(
@@ -78,11 +87,11 @@ def validate(request: TranscriptValidationRequest) -> dict[str, object] | JSONRe
         transcript = session.get(Transcript, request.transcript_id)
         if transcript:
             transcript.source_content_id = request.source_content_id
-            transcript.raw_text = request.raw_text
+            transcript.raw_text = transcript_text
         else:
-            session.add(Transcript(id=request.transcript_id, source_content_id=request.source_content_id, raw_text=request.raw_text))
+            session.add(Transcript(id=request.transcript_id, source_content_id=request.source_content_id, raw_text=transcript_text))
         session.flush()
-        persist_segments(session, request.transcript_id, request.raw_text)
+        persist_segments(session, request.transcript_id, transcript_text)
     return {"transcript_id": request.transcript_id, "line_count": len(result.lines), "warnings": result.warnings}
 
 

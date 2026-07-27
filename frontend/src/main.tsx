@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -21,6 +21,30 @@ type Candidate = {
   assets: Asset[];
 };
 
+const SRT_TIMING_PATTERN = /^(\d{2}:\d{2}:\d{2}),\d{3}\s+-->\s+(\d{2}:\d{2}:\d{2}),\d{3}$/;
+
+function srtTimestampToSeconds(timestamp: string) {
+  const [hours, minutes, seconds] = timestamp.split(":").map(Number);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+function formatClipOpsTimestamp(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((part) => part.toString().padStart(2, "0")).join(":");
+}
+
+function normalizeSrtTranscript(text: string) {
+  const lines = text.trim().split(/\r?\n\s*\r?\n/).map((block) => {
+    const blockLines = block.split(/\r?\n/);
+    const timing = SRT_TIMING_PATTERN.exec(blockLines[1] ?? "");
+    if (blockLines.length < 3 || !/^\d+$/.test(blockLines[0]) || !timing) return null;
+    return `[${formatClipOpsTimestamp(srtTimestampToSeconds(timing[1]))}] ${blockLines.slice(2).join(" ")}`;
+  });
+  return lines.every(Boolean) ? lines.join("\n") : text;
+}
+
 function App() {
   const [sourceTitle, setSourceTitle] = useState("");
   const [rawText, setRawText] = useState("");
@@ -41,9 +65,20 @@ function App() {
   const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null);
   const [workflowRuns, setWorkflowRuns] = useState<WorkflowRun[]>([]);
 
-  async function loadFile(event: ChangeEvent<HTMLInputElement>) {
+  async function loadTranscriptFile(file: File) {
+    const text = await file.text();
+    setRawText(file.name.toLowerCase().endsWith(".srt") ? normalizeSrtTranscript(text) : text);
+  }
+
+  function loadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (file) setRawText(await file.text());
+    if (file) void loadTranscriptFile(file);
+  }
+
+  function dropFile(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) void loadTranscriptFile(file);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -149,7 +184,7 @@ function App() {
     <form onSubmit={submit}>
       <label>Source title<input value={sourceTitle} onChange={(event) => setSourceTitle(event.target.value)} required /></label>
       <label>Paste transcript<textarea value={rawText} onChange={(event) => setRawText(event.target.value)} required rows={14} /></label>
-      <label>Or upload a .txt or .md transcript<input type="file" accept=".txt,.md,text/plain" onChange={loadFile} /></label>
+      <label className="drop-zone" onDragOver={(event) => event.preventDefault()} onDrop={dropFile}>Drop a .txt, .md, or .srt transcript here, or browse<input type="file" accept=".txt,.md,.srt,text/plain,application/x-subrip" onChange={loadFile} /></label>
       <button disabled={status === "loading"}>{status === "loading" ? "Validating…" : "Validate transcript"}</button>
     </form>
     {status !== "idle" && <p role={status === "error" ? "alert" : "status"}>{message}</p>}
@@ -158,7 +193,7 @@ function App() {
     {segments?.map((segment) => <article key={segment.id}><strong>{segment.start_seconds}s–{segment.end_seconds}s</strong><p>{segment.text}</p></article>)}
     <section><h2>Review queue</h2><label>Workflow run ID<input value={workflowRunId} onChange={(event) => setWorkflowRunId(event.target.value)} /></label><label>Status filter<select value={queueStatus} onChange={(event) => setQueueStatus(event.target.value)}><option value="">All</option><option>NEEDS_REVIEW</option><option>APPROVED</option><option>REJECTED</option><option>EDITING</option></select></label><label>Rejection reason<input value={rejectionReason} onChange={(event) => setRejectionReason(event.target.value)} /></label><button onClick={loadQueue}>Load queue</button>{queue.map((item) => <article key={item.candidate_id}><strong>{item.status} · {item.scores?.overall_score ?? "Unscored"}</strong><p>{item.transcript_excerpt}</p><button onClick={() => reviewCandidate(item.candidate_id, "SUBMIT_FOR_REVIEW")}>Submit</button><button onClick={() => reviewCandidate(item.candidate_id, "APPROVE")}>Approve</button><button onClick={() => reviewCandidate(item.candidate_id, "REJECT")}>Reject</button><button onClick={() => reviewCandidate(item.candidate_id, "EDIT")}>Edit</button></article>)}</section>
     <section><h2>Fleet dashboard</h2><button onClick={loadDashboard}>Load dashboard</button>{dashboard && <><p className="warning">Simulated performance data</p><p>Approval rate: {Math.round(dashboard.approval_rate * 100)}% · Queue: {dashboard.queue_status}</p>{dashboard.accounts.map((account) => <article key={account.account}><strong>{account.account}</strong><p>Health: {account.health_score} · Published: {account.published_clips} · Median engagement: {account.median_engagement_rate}</p></article>)}</>}</section>
-    <section><h2>Workflow history</h2><button onClick={loadWorkflowRuns}>Load runs</button>{workflowRuns.map((run) => <article key={run.workflow_run_id}><strong>{run.status}</strong><p>{run.error_message}</p><pre>{JSON.stringify(run.model_runs, null, 2)}</pre></article>)}</section>
+    <section><h2>Workflow history</h2><button onClick={loadWorkflowRuns}>Load runs</button>{workflowRuns.map((run) => <article key={run.workflow_run_id}><strong>{run.status}</strong><p><code>{run.workflow_run_id}</code></p><p>{run.error_message}</p><button onClick={() => setWorkflowRunId(run.workflow_run_id)}>Use in review queue</button><pre>{JSON.stringify(run.model_runs, null, 2)}</pre></article>)}</section>
     <section><h2>Weekly report</h2><button onClick={loadWeeklyReport}>Generate weekly report</button>{weeklyReport && <article><p className="warning">Simulated, directional data only.</p><h3>{weeklyReport.week_range}</h3><p>{weeklyReport.summary}</p><h4>Fleet snapshot</h4><pre>{JSON.stringify(weeklyReport.fleet_snapshot, null, 2)}</pre><h4>Top clips</h4><pre>{JSON.stringify(weeklyReport.top_clips, null, 2)}</pre><h4>Underperforming clips</h4><pre>{JSON.stringify(weeklyReport.underperforming_clips, null, 2)}</pre><h4>Experiment readout</h4><pre>{JSON.stringify(weeklyReport.experiment_readout, null, 2)}</pre><h4>Workflow metrics</h4><pre>{JSON.stringify(weeklyReport.workflow_metrics, null, 2)}</pre><h4>Next experiment</h4><pre>{JSON.stringify(weeklyReport.next_experiment, null, 2)}</pre><h4>Backlog suggestions</h4><ul>{weeklyReport.content_backlog_suggestions.map((item) => <li key={item}>{item}</li>)}</ul><h4>Caveats</h4><ul>{weeklyReport.caveats.map((item) => <li key={item}>{item}</li>)}</ul></article>}</section>
     <section><h2>Experiment readout</h2><button onClick={createExperiment}>Create hook comparison</button>{experiment && <article><strong>{experiment.name}</strong><p>{experiment.variant_a} vs {experiment.variant_b}</p><p className="warning">{experiment.confidence_note}</p></article>}</section>
     <section><h2>Publishing queue</h2><button onClick={loadPublishingQueue}>Load publishing queue</button>{publishingQueue.length === 0 && <p>No queued candidates.</p>}{publishingQueue.map((item) => <article key={item.queue_item_id}><strong>{item.account} · {item.platform}</strong><p>{item.scheduled_for} · {item.status}</p><p>{item.candidate_excerpt}</p></article>)}</section>

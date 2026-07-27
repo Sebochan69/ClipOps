@@ -1,0 +1,79 @@
+1
+00:00:00,000 --> 00:00:06,000
+Here is the simple idea: good clips are usually found before editing begins.
+
+2
+00:00:06,000 --> 00:00:12,000
+Instead of hunting through a full recording, start with the transcript.
+
+3
+00:00:12,000 --> 00:00:18,000
+Look for the moment where the speaker names a problem in plain language.
+
+4
+00:00:18,000 --> 00:00:24,000
+That line becomes the hook because it gives viewers a reason to care.
+
+5
+00:00:24,000 --> 00:00:30,000
+The next few lines should explain the idea without needing extra context.
+
+6
+00:00:30,000 --> 00:00:36,000
+If the takeaway can stand alone, it is already closer to a useful short.
+
+7
+00:00:36,000 --> 00:00:42,000
+Now score the clip for clarity, novelty, emotion, and effort to edit.
+
+8
+00:00:42,000 --> 00:00:48,000
+A strong candidate is not just exciting; it is specific enough to finish.
+
+9
+00:00:48,000 --> 00:00:54,000
+For this demo, ClipOps turns those timestamps into reviewable candidates.
+
+10
+00:00:54,000 --> 00:01:00,000
+Nothing is posted anywhere; the publishing queue is intentionally simulated.
+
+11
+00:01:00,000 --> 00:01:06,000
+The reviewer can approve, reject, or request edits before a clip moves on.
+
+12
+00:01:06,000 --> 00:01:12,000
+That human checkpoint keeps the workflow useful instead of fully automatic.
+
+13
+00:01:12,000 --> 00:01:18,000
+After approval, mock performance data helps compare different hook styles.
+
+14
+00:01:18,000 --> 00:01:24,000
+The dashboard then shows simulated views, engagement, and approval patterns.
+
+15
+00:01:24,000 --> 00:01:30,000
+Weekly reports summarize what worked and what should be tested next.
+
+16
+00:01:30,000 --> 00:01:36,000
+The expected outcome is not viral certainty; it is a repeatable review loop.
+
+17
+00:01:36,000 --> 00:01:42,000
+That loop makes every transcript easier to inspect, segment, and discuss.
+
+18
+00:01:42,000 --> 00:01:48,000
+It also creates a clear audit trail for decisions made during content prep.
+
+19
+00:01:48,000 --> 00:01:54,000
+By the end, the team has candidates, draft assets, and simulated metrics.
+
+20
+00:01:54,000 --> 00:02:00,000
+That is enough for a practical demo without relying on real platform data.

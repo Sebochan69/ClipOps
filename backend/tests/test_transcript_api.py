@@ -11,6 +11,13 @@ def transcript_lines() -> str:
     return "\n".join(f"[00:{second:02d}] line {second}" for second in range(10))
 
 
+def srt_lines() -> str:
+    return "\n\n".join(
+        f"{index + 1}\n00:00:{index:02d},000 --> 00:00:{index + 1:02d},000\nline {index}"
+        for index in range(10)
+    )
+
+
 @pytest.fixture
 def client(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'test.db'}")
@@ -41,6 +48,15 @@ def test_valid_transcript_is_persisted(client: TestClient) -> None:
     assert response.json() == {"transcript_id": "transcript-1", "line_count": 10, "warnings": []}
     with Session(app.state.engine) as session:
         assert session.get(Transcript, "transcript-1") is not None
+
+
+def test_srt_transcript_is_normalized_and_persisted(client: TestClient) -> None:
+    response = client.post("/transcripts/validate", json=payload(srt_lines()))
+    assert response.json() == {"transcript_id": "transcript-1", "line_count": 10, "warnings": []}
+    with Session(app.state.engine) as session:
+        transcript = session.get(Transcript, "transcript-1")
+        assert transcript is not None
+        assert transcript.raw_text.startswith("[00:00:00] line 0")
 
 
 def test_segments_are_available_after_validation(client: TestClient) -> None:

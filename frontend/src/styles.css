@@ -3,6 +3,7 @@ main { max-width: 720px; margin: 3rem auto; padding: 2rem; background: white; bo
 section { border-top: 1px solid #d8dce4; margin-top: 2rem; padding-top: 1rem; }
 form, label { display: grid; gap: .5rem; }
 form { margin: 1.5rem 0; }
+.drop-zone { border: 2px dashed #9aa5b5; border-radius: 8px; padding: 1rem; }
 input, textarea, select, button { font: inherit; padding: .65rem; }
 textarea { resize: vertical; }
 button { width: fit-content; cursor: pointer; }
